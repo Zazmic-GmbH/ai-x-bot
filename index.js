@@ -20,9 +20,25 @@ app.use(corsMiddleware);
 app.use(logger);
 
 // Routes setup
+app.use("/", async (req, res) => {
+  return res.status(200).json({
+    status: "sucess",
+  });
+});
+
 app.use("/tweet", async (req, res) => {
-  let tweet = await generateTweet();
-  return res.status(200).json(tweet);
+  try {
+    let tweet = await generateTweet();
+    return res.status(200).json(tweet);
+  } catch (error) {
+    console.error("Error generating tweet:", error);
+    return res.status(500).json({
+      error: {
+        message: error.message,
+        statusCode: 500,
+      },
+    });
+  }
 });
 
 // Error middleware
