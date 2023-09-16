@@ -21,10 +21,8 @@ app.use(logger);
 
 // Routes setup
 app.use("/tweet", async (req, res) => {
-  let tweet = await generateTweet(req, res);
-  let result = await translateText(tweet);
-
-  return res.status(200).json(result);
+  let tweet = await generateTweet();
+  return res.status(200).json(tweet);
 });
 
 // Error middleware
@@ -34,8 +32,9 @@ app.use(errorMiddleware);
 schedule.scheduleJob("0 0 * * *", () => {
   generateTweet();
 });
+
 // test run, comment before deploy to prod
-generateTweet();
+// generateTweet();
 
 // Start the server
 app.listen(port, () => console.log(`Server listening on port ${port}`));

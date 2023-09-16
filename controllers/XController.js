@@ -1,11 +1,13 @@
 const axios = require("axios");
 
+const { TwitterApi } = require("twitter-api-v2");
+
 const { getAccessToken } = require("../utils/GoogleAuthUtils");
 const { fetchRSS } = require("./RSSController");
 const { translateText } = require("./TranslateController");
 const { generateImage } = require("./ImageController");
 
-async function generate(accessToken, rssData) {
+async function generateContent(accessToken, rssData) {
   const headers = {
     "Content-Type": "application/json",
     Authorization: `Bearer ${accessToken}`,
@@ -55,28 +57,61 @@ async function generate(accessToken, rssData) {
 }
 
 const generateTweet = async (req, res) => {
-  try {
-    let accessToken = await getAccessToken();
-
-    // Fetch RSS
-    let rssData = await fetchRSS();
-    
-    // Generate tweet
-    let tweet = await generate(accessToken, rssData);
-
-    // Translate tweet
-    //let translation = await translateText(tweet);
-    let translation = tweet;
-
-    // Generate image
-    let url = await generateImage(translation);
-
-    return translation;
-  } catch (err) {
-    console.error(err);
-    //res.status(500).json({ message: "Internal server error" });
+  // Get access token
+  let accessToken = await getAccessToken();
+  if (!accessToken) {
+    throw new Error("Error getting access token");
   }
+
+  // Fetch RSS
+  let rssData = await fetchRSS();
+  if (!rssData) {
+    throw new Error("Error fetching RSS");
+  }
+
+  // Generate tweet
+  let content = await generateContent(accessToken, rssData);
+  if (!content) {
+    throw new Error("Error generating content");
+  }
+
+  // Translate tweet
+  let translation = await translateText(content);
+  if (!translation) {
+    throw new Error("Error translating content");
+  }
+
+  // Generate image
+  let url = await generateImage(translation);
+  if (!url) {
+    throw new Error("Error generating image");
+  }
+
+  // Post tweet with image
+  let tweetId = await postTweet(url, translation);
+  console.log("=> Tweet posted: ", tweetId);
+  if (!tweetId) {
+    throw new Error("Error posting tweet");
+  }
+
+  return tweetId;
 };
+
+async function postTweet(url, content) {
+  const client = new TwitterApi({
+    appKey: process.env.TWITTER_API_KEY,
+    appSecret: process.env.TWITTER_API_SECRET,
+    accessToken: process.env.TWITTER_ACCESS_TOKEN,
+    accessSecret: process.env.TWITTER_ACCESS_TOKEN_SECRET,
+  });
+
+  const tweet = await client.v2.tweet(content, {
+    media: url,
+  });
+
+  console.log(tweet);
+  return tweet.id_str;
+}
 
 module.exports = {
   generateTweet,
